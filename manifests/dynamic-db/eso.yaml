@@ -1,0 +1,46 @@
+# A separate identity and a separate Vault role from the kv reader, so the
+# account that can read the static secret cannot mint database users.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-db
+  namespace: demo
+---
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: VaultDynamicSecret
+metadata:
+  name: app-db
+  namespace: demo
+spec:
+  path: /database/creds/app-ro
+  method: GET
+  resultType: Data
+  provider:
+    server: http://vault.vault.svc:8200
+    auth:
+      kubernetes:
+        mountPath: kubernetes
+        role: app-db
+        serviceAccountRef:
+          name: eso-db
+          audiences:
+            - vault
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: app-db-creds
+  namespace: demo
+spec:
+  # Every refresh asks Vault for a new database user, so this has to be shorter
+  # than the default_ttl of the Vault role (15m), or the Secret holds a dead password.
+  refreshInterval: 5m
+  target:
+    name: app-db-creds
+    creationPolicy: Owner
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: VaultDynamicSecret
+          name: app-db
