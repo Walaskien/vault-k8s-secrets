@@ -84,8 +84,16 @@ spec:
 YAML
 check "ExternalSecret for a path outside the policy turns NotReady" \
   kubectl -n "$APP_NS" wait externalsecret/forbidden --for=condition=Ready=False --timeout=90s
-msg=$(kubectl -n "$APP_NS" get externalsecret/forbidden -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}')
-if echo "$msg" | grep -Eiq 'permission denied|403'; then ok "reason is a Vault permission error"; else nope "unexpected reason: $msg"; fi
+# The condition message only says "could not get secret data from provider". Vault's
+# answer is in the controller log, so look there for the 403 on this exact path.
+denied_log=""
+for _ in $(seq 1 15); do
+  denied_log=$(kubectl -n external-secrets logs deploy/external-secrets --tail=300 2>/dev/null |
+    grep '"name":"forbidden"' | grep 'secret/data/demo/other' | grep -i 'permission denied' | tail -1 || true)
+  [ -n "$denied_log" ] && break
+  sleep 2
+done
+if [ -n "$denied_log" ]; then ok "controller log: Vault answered 403 permission denied for secret/data/demo/other"; else nope "no permission error for secret/data/demo/other in the controller log"; fi
 if kubectl -n "$APP_NS" get secret forbidden >/dev/null 2>&1; then nope "Secret 'forbidden' was created"; else ok "no Secret was created for it"; fi
 
 kubectl -n "$APP_NS" create serviceaccount intruder >/dev/null
