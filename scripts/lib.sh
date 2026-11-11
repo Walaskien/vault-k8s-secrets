@@ -76,7 +76,7 @@ json_field() {
 access_pod() {
   local ns=$1 name=$2 sa=$3 expect=$4 role=${5:-demo-app} phase=""
   kubectl -n "$ns" create configmap access-check --from-file=tests/access-check.sh \
-    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+    --dry-run=client -o yaml | kubectl -n "$ns" apply -f - >/dev/null
   kubectl -n "$ns" delete pod "$name" --ignore-not-found --wait=true >/dev/null
   kubectl apply -f - >/dev/null <<YAML
 apiVersion: v1

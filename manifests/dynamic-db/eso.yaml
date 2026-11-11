@@ -12,7 +12,7 @@ metadata:
   name: app-db
   namespace: demo
 spec:
-  path: /database/creds/app-ro
+  path: database/creds/app-ro
   method: GET
   resultType: Data
   provider:

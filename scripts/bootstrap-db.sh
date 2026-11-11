@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Extension: Vault database secrets engine for the demo Postgres. Vault gets one
-# admin connection, a role that describes what a generated user may do, a policy
+# admin connection, a role that describes what an issued user may do, a policy
 # for reading that role and a Kubernetes auth role for the ServiceAccount that
 # may ask. Safe to run again. Run bootstrap-vault.sh first (it enables the auth method).
 #
@@ -17,6 +17,7 @@ PG_ADMIN_USER=${PG_ADMIN_USER:-postgres}
 : "${PG_ADMIN_PASSWORD:?PG_ADMIN_PASSWORD is not set}"
 DB_SA=${DB_SA:-eso-db}
 
+: "${VAULT_TOKEN:?VAULT_TOKEN is not set}"
 wait_for_vault
 vault auth list | grep -q '^kubernetes/' || die "run scripts/bootstrap-vault.sh first, the kubernetes auth method is missing"
 
@@ -34,7 +35,7 @@ printf '{"plugin_name":"postgresql-database-plugin","allowed_roles":"app-ro","co
   vault_stdin write database/config/postgres - >/dev/null
 log "database/config/postgres: written (Vault checked the connection)"
 
-# What a generated user is: a login role that is a member of app_readonly (created
+# What an issued user is: a login role that is a member of app_readonly (created
 # by manifests/dynamic-db/init.sql), valid for 15 minutes, up to an hour with renewals.
 vault write database/roles/app-ro \
   db_name=postgres \

@@ -16,7 +16,11 @@ POLICY=${POLICY:-demo-app-read}
 ROLE=${ROLE:-demo-app}
 ESO_SA=${ESO_SA:-eso-demo}
 KUBE_HOST=${KUBE_HOST:-https://kubernetes.default.svc:443}
+# Vault reads the CA file of its own pod when the auth config is written. Outside a
+# pod, as in tests/docker-vault.sh, there is none, and this switch skips it.
+NO_LOCAL_CA=${K8S_AUTH_NO_LOCAL_CA:-false}
 
+: "${VAULT_TOKEN:?VAULT_TOKEN is not set}"
 wait_for_vault
 
 # 1. kv v2. Dev mode already mounts it at secret/; a real Vault does not.
@@ -39,9 +43,12 @@ else
   vault auth enable kubernetes
   log "auth kubernetes/: enabled"
 fi
+config_extra=()
+if [ "$NO_LOCAL_CA" = true ]; then config_extra+=(disable_local_ca_jwt=true); fi
 vault write auth/kubernetes/config \
   kubernetes_host="$KUBE_HOST" \
-  disable_iss_validation=true >/dev/null
+  disable_iss_validation=true \
+  ${config_extra[@]+"${config_extra[@]}"} >/dev/null
 
 # 3. Policy, from the file in the repo.
 vault_stdin policy write "$POLICY" - <"vault/policies/${POLICY}.hcl" >/dev/null

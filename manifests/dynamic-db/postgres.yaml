@@ -1,5 +1,5 @@
 # Demo database for the dynamic credentials extension. The admin password is
-# not in this file: scripts/deploy.sh generates it and creates the Secret
+# not in this file: scripts/deploy-db.sh makes one and creates the Secret
 # "postgres-root" in the cluster. emptyDir, so the data is gone with the pod.
 apiVersion: apps/v1
 kind: Deployment
@@ -39,7 +39,9 @@ spec:
               containerPort: 5432
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "postgres", "-d", "demo"]
+              # Over TCP on purpose: the init scripts run on a temporary server that
+              # listens on the unix socket only, and Vault connects over TCP.
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "demo"]
             periodSeconds: 5
           resources:
             requests:
