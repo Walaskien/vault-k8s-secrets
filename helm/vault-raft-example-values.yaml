@@ -1,0 +1,65 @@
+# NOT the demo. A sketch of what a real, non-dev install changes: Raft storage on
+# persistent volumes, three replicas, TLS on the listener, an audit log. The chart
+# accepts it (make kubeconform renders it) but I have not deployed it anywhere.
+# Unseal, TLS certificates and backups are described in docs/real-mode.md.
+global:
+  tlsDisable: false
+injector:
+  enabled: false
+server:
+  dev:
+    enabled: false
+  extraEnvironmentVars:
+    VAULT_CACERT: /vault/userconfig/vault-tls/ca.crt
+  # A Secret named vault-tls with tls.crt, tls.key and ca.crt, issued for the
+  # service names below (cert-manager or any other CA, not part of this repo).
+  volumes:
+    - name: tls
+      secret:
+        secretName: vault-tls
+  volumeMounts:
+    - name: tls
+      mountPath: /vault/userconfig/vault-tls
+      readOnly: true
+  dataStorage:
+    enabled: true
+    size: 10Gi
+  auditStorage:
+    enabled: true
+    size: 5Gi
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = false
+
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+          tls_key_file  = "/vault/userconfig/vault-tls/tls.key"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+          retry_join {
+            leader_api_addr = "https://vault-0.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+          }
+          retry_join {
+            leader_api_addr = "https://vault-1.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+          }
+          retry_join {
+            leader_api_addr = "https://vault-2.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+          }
+        }
+
+        service_registration "kubernetes" {}
+
+        # Auto-unseal would go here (awskms, gcpckms, azurekeyvault or a transit
+        # seal of another Vault). Without a seal block the operator unseals by hand.

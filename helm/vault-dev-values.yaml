@@ -1,0 +1,13 @@
+# DEMO ONLY. Dev mode: in-memory storage, no TLS, auto-unsealed, fixed root token.
+# Everything is lost when the pod restarts. See docs/real-mode.md for what a
+# real install looks like (storage, unseal, TLS).
+injector:
+  enabled: false   # External Secrets does the delivery, the sidecar injector is not used
+server:
+  dev:
+    enabled: true
+    devRootToken: root   # demo token, public on purpose
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi

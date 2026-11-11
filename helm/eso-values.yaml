@@ -1,0 +1,2 @@
+# CRDs come with the chart so one helm command is enough on a fresh cluster.
+installCRDs: true
