@@ -131,7 +131,7 @@ Not verified:
 - Dev mode, plain HTTP and a public root token. That is the demo, not a setup to copy; see [docs/real-mode.md](docs/real-mode.md).
 - The Secret ends up as a normal Kubernetes Secret: base64 in etcd, readable by anyone who can `get` secrets in the namespace. Encryption at rest of etcd is a cluster setting and not covered. A CSI driver or the Vault agent injector avoid the Kubernetes Secret, at the price of more moving parts in every pod.
 - The `SecretStore` is namespaced, but every ExternalSecret in `demo` can use it. Whoever may create ExternalSecrets there can read `secret/demo/app`, so the boundary is namespace RBAC plus the policy.
-- Tested versions only: Vault chart 0.34.1 (Vault 2.0.4), External Secrets chart 2.15.0 (API `external-secrets.io/v1`), kubernetes 1.34.11 in kind, Postgres 17.11. Vault 1.21 and later refuse Kubernetes logins when the role has no `audience`, which is why both sides set `vault`.
+- Tested versions only: Vault chart 0.34.1 (Vault 2.0.4), External Secrets chart 2.15.0 (API `external-secrets.io/v1`), kubernetes 1.34.11 in kind, Postgres 17.11. A Vault role without `audience` only produces a warning, but with it set a token minted for another audience cannot log in, which is why both sides use `vault`.
 - The CRD schemas for kubeconform come from a public catalog on GitHub (datreeio/CRDs-catalog). If it goes away the lint job fails until the location is changed.
 - One replica of everything, no network policies, no resource tuning. The demo Postgres has no volume.
 - The images come from Docker Hub and ghcr.io. If Docker Hub rate-limits the runner the e2e job can fail on image pull and needs a re-run.
