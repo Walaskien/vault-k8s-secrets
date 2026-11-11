@@ -1,0 +1,11 @@
+extends: default
+
+rules:
+  # Some files start with "---", policies start with apiVersion. Both are fine.
+  document-start: disable
+  # GitHub workflows use "on:", which the default truthy check dislikes.
+  truthy:
+    check-keys: false
+  line-length:
+    max: 120
+    level: warning
