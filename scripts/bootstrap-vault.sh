@@ -66,8 +66,12 @@ vault write "auth/kubernetes/role/${ROLE}" \
 log "role ${ROLE}: ${APP_NS}/${ESO_SA} -> ${POLICY}"
 
 # 5. First value, random, never printed and never in Git.
-if vault kv get -mount="$KV_MOUNT" "$SECRET_PATH" >/dev/null 2>&1; then
+# Only "No value found" means there is none. Any other failure (Vault sealed,
+# connection refused, a timeout) must not end in a new random value over a live one.
+if out=$(vault kv get -mount="$KV_MOUNT" "$SECRET_PATH" 2>&1); then
   log "secret ${KV_MOUNT}/${SECRET_PATH}: exists, left as it is"
+elif [[ "$out" != *"No value found"* ]]; then
+  die "could not read ${KV_MOUNT}/${SECRET_PATH}: $out"
 else
   vault kv put -mount="$KV_MOUNT" "$SECRET_PATH" username=demo-app "password=$(random_hex)" >/dev/null
   log "secret ${KV_MOUNT}/${SECRET_PATH}: seeded with a random password"

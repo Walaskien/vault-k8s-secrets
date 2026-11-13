@@ -88,6 +88,36 @@ eq "version is now 2" 2 "$(vault read -field=current_version secret/metadata/dem
 scripts/bootstrap-vault.sh 2>/dev/null
 eq "bootstrap after rotation keeps the rotated value" rotated-1 "$(vault kv get -mount=secret -field=password demo/app)"
 
+echo "== bootstrap failure paths"
+ver=$(vault read -field=current_version secret/metadata/demo/app)
+if out=$(FAIL_ON='kv get' VAULT_EXEC="$PWD/tests/exec-wrapper.sh" scripts/bootstrap-vault.sh 2>&1); then
+  nope "bootstrap exited 0 when it could not read the secret"
+else
+  ok "bootstrap fails when kv get fails"
+fi
+eq "failed read left the value alone" rotated-1 "$(vault kv get -mount=secret -field=password demo/app)"
+eq "failed read wrote no new version" "$ver" "$(vault read -field=current_version secret/metadata/demo/app)"
+vault secrets enable -path=legacy -version=1 kv >/dev/null
+if out=$(KV_MOUNT=legacy scripts/bootstrap-vault.sh 2>&1); then
+  nope "bootstrap accepted a kv v1 mount"
+elif echo "$out" | grep -q "not kv v2"; then
+  ok "kv v1 mount refused (not kv v2)"
+else
+  nope "kv v1 mount failed for another reason: $out"
+fi
+if vault secrets list -detailed | grep '^legacy/' | grep -q 'version:1'; then
+  ok "legacy/ is still kv v1"
+else
+  nope "legacy/ was changed"
+fi
+if out=$(env -u VAULT_TOKEN scripts/bootstrap-vault.sh 2>&1); then
+  nope "bootstrap ran without VAULT_TOKEN"
+elif echo "$out" | grep -q "VAULT_TOKEN"; then
+  ok "no VAULT_TOKEN refused"
+else
+  nope "missing token failed for another reason: $out"
+fi
+
 echo "== bootstrap-db.sh, twice"
 # Over TCP: the init scripts run on a temporary server that has no TCP listener.
 for _ in $(seq 1 60); do
