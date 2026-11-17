@@ -62,8 +62,16 @@ refused() {
 }
 
 echo "== bootstrap-vault.sh, twice"
-scripts/bootstrap-vault.sh
+argv_log=$(mktemp)
+ARGV_LOG=$argv_log VAULT_EXEC="$PWD/tests/exec-wrapper.sh" scripts/bootstrap-vault.sh
 first=$(vault kv get -mount=secret -field=password demo/app)
+if ! grep -qF -- 'kv put' "$argv_log"; then nope "argument log has no kv put, the check below would prove nothing"; fi
+if grep -qF -- "$first" "$argv_log"; then
+  nope "the generated password is in the command arguments of the bootstrap"
+else
+  ok "generated password is not in any command argument"
+fi
+rm -f "$argv_log"
 scripts/bootstrap-vault.sh
 eq "second run left the secret alone" "$first" "$(vault kv get -mount=secret -field=password demo/app)"
 eq "secret has one version" 1 "$(vault read -field=current_version secret/metadata/demo/app)"

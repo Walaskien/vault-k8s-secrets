@@ -34,5 +34,6 @@ The listener needs `tls_cert_file` and `tls_key_file`, and every client needs th
 
 - `scripts/bootstrap-vault.sh` takes the token from `VAULT_TOKEN`. Run it with a token that has the rights to create mounts, policies and roles, not with the root token that you have already revoked.
 - If Vault runs outside the cluster, the Kubernetes auth config can no longer use the pod's own token. It needs `kubernetes_host` reachable from Vault, `kubernetes_ca_cert`, and a `token_reviewer_jwt` of a ServiceAccount that has `system:auth-delegator`. The Vault Helm chart binds that role to the Vault ServiceAccount (`server.authDelegator`), which is enough only when Vault runs inside the same cluster.
+- `scripts/lib.sh` passes the token as `env VAULT_TOKEN=...` in the arguments of `kubectl exec`, so it shows up in `ps` and in API server audit logs. Fine for the public dev token here, not for a real one: use a short-lived token and change how `run_in_vault` hands it over. The generated passwords already go through stdin.
 - The seed step in the script (a random first value) is for the demo. A real secret gets its value from the person or system that owns it.
 - A recovery path: `vault operator raft snapshot save` on a schedule, and a restore that somebody has actually practised.

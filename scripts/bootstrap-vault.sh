@@ -73,6 +73,8 @@ if out=$(vault kv get -mount="$KV_MOUNT" "$SECRET_PATH" 2>&1); then
 elif [[ "$out" != *"No value found"* ]]; then
   die "could not read ${KV_MOUNT}/${SECRET_PATH}: $out"
 else
-  vault kv put -mount="$KV_MOUNT" "$SECRET_PATH" username=demo-app "password=$(random_hex)" >/dev/null
+  # JSON on stdin, so the value is not in the arguments of kubectl exec (ps, API audit log)
+  printf '{"username":"demo-app","password":"%s"}' "$(random_hex)" |
+    vault_stdin kv put -mount="$KV_MOUNT" "$SECRET_PATH" - >/dev/null
   log "secret ${KV_MOUNT}/${SECRET_PATH}: seeded with a random password"
 fi

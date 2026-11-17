@@ -11,7 +11,7 @@ export VAULT_TOKEN=${VAULT_TOKEN:-root}
 
 # The admin password lives only in the cluster and in Vault's connection config.
 if ! kubectl -n "$APP_NS" get secret postgres-root >/dev/null 2>&1; then
-  kubectl -n "$APP_NS" create secret generic postgres-root "--from-literal=password=$(random_hex)"
+  printf %s "$(random_hex)" | kubectl -n "$APP_NS" create secret generic postgres-root --from-file=password=/dev/stdin
 fi
 
 kubectl apply -k manifests/dynamic-db
