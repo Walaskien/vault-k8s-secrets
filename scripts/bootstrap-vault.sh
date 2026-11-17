@@ -24,14 +24,23 @@ NO_LOCAL_CA=${K8S_AUTH_NO_LOCAL_CA:-false}
 wait_for_vault
 
 # 1. kv v2. Dev mode already mounts it at secret/; a real Vault does not.
+# A fresh dev Vault can answer "status" a moment before it has mounted secret/,
+# so an "already in use" on enable is checked like an existing mount.
 if vault secrets list | grep -q "^${KV_MOUNT}/"; then
+  mounted=true
+elif out=$(vault secrets enable -path="$KV_MOUNT" -version=2 kv 2>&1); then
+  mounted=false
+  log "kv v2 at ${KV_MOUNT}/: enabled"
+elif [[ "$out" == *"already in use"* ]]; then
+  mounted=true
+else
+  die "could not enable kv v2 at ${KV_MOUNT}/: $out"
+fi
+if $mounted; then
   if ! vault secrets list -detailed | grep "^${KV_MOUNT}/" | grep -q "version:2"; then
     die "${KV_MOUNT}/ exists but is not kv v2, not touching it"
   fi
   log "kv v2 at ${KV_MOUNT}/: already there"
-else
-  vault secrets enable -path="$KV_MOUNT" -version=2 kv
-  log "kv v2 at ${KV_MOUNT}/: enabled"
 fi
 
 # 2. Kubernetes auth. Vault checks ServiceAccount tokens with the TokenReview API.
